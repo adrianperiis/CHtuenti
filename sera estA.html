@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>CHALETEO | Varsity Edition</title>
+    <style>
+        body { background-image: url('FONDO.png'); background-size: cover; background-attachment: fixed; font-family: 'Tahoma', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 20px; margin: 0; }
+        #header-container { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; gap: 10px; }
+        .logo-icon { width: 50px; } .logo-text { height: 40px; }
+        .chat-window { width: 320px; border: 1px solid #999; background-color: #fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        
+        /* NUEVO ESTILO DE BARRA DE TITULO */
+        .chat-header { background-color: #d1e0f0; padding: 3px 6px; border-bottom: 1px solid #999; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: bold; }
+        .header-left { display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; background-color: #4CAF50; border-radius: 50%; }
+        .header-right { display: flex; gap: 6px; cursor: default; }
+        .btn-min, .btn-max, .btn-close { cursor: pointer; line-height: 10px; font-weight: bold; }
+        .btn-max { font-size: 12px; position: relative; top: -1px; }
+
+        .chat-messages { height: 300px; overflow-y: auto; padding: 10px; font-size: 12px; flex-grow: 1; }
+        .msg-wrapper { display: flex; margin-bottom: 8px; }
+        .bubble { padding: 6px 10px; border-radius: 10px; border: 1px solid #999; max-width: 85%; }
+        #button-area { padding: 10px; border-top: 1px solid #ccc; background: #f9f9f9; min-height: 50px; text-align: center; }
+        button { display: block; width: 100%; margin: 4px 0; cursor: pointer; padding: 8px; border: 1px solid #999; border-radius: 5px; background: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="header-container">
+        <img class="logo-icon" src="LOGO TUENTI.png" alt="Logo">
+        <img class="logo-text" src="TUENTI2.png" alt="Tuenti">
+    </div>
+
+    <div class="chat-window">
+        <div class="chat-header">
+            <div class="header-left"><span class="status-dot"></span><span>Chaleteo</span></div>
+            <div class="header-right">
+                <span class="btn-min">_</span>
+                <span class="btn-max">□</span>
+                <span class="btn-close">x</span>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div id="button-area"></div>
+    </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, set, remove } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCOEXAMPLE",
+    authDomain: "ch-tuenti.firebaseapp.com",
+    databaseURL: "https://ch-tuenti-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "ch-tuenti",
+    storageBucket: "ch-tuenti.firebasedatabase.app",
+    messagingSenderId: "266476668009",
+    appId: "1:266476668009:web:6247545430172801ac0ef8"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const chatRef = ref(db, 'mensajes/');
+const btnArea = document.getElementById('button-area');
+const IMGBB_API_KEY = "61a16dae80876b29667edd9bc6201d3e";
+const tiempoInicio = Date.now();
+let esperandoFoto = false;
+
+async function reiniciarChat() {
+    await remove(chatRef);
+    push(chatRef, { emisor: "CH", texto: "¿Te apuntas al CHALETEO Varsity?", opciones: ["¡Claro que sí!", "Obvio"], timestamp: Date.now() });
+}
+
+reiniciarChat();
+
+onChildAdded(chatRef, (data) => {
+    const msg = data.val();
+    if (!msg.timestamp || msg.timestamp < tiempoInicio) return;
+
+    const container = document.getElementById('chat-messages');
+    const esUsuario = msg.emisor === "Yo";
+
+    const msgId = data.key;
+    const div = document.createElement('div');
+    div.id = "msg-" + msgId;
+    div.className = "msg-wrapper";
+    div.style.justifyContent = esUsuario ? "flex-end" : "flex-start";
+    div.innerHTML = `<div class="bubble" style="background:${esUsuario ? '#e0f7fa' : '#d1e0f0'}"><b>${msg.emisor}:</b> <span class="content">${msg.texto}</span></div>`;
+    container.appendChild(div);
+
+    if (msg.imagen) {
+        const imgDiv = document.createElement('div');
+        imgDiv.className = "msg-wrapper";
+        imgDiv.innerHTML = `<div class="bubble" style="background:#d1e0f0"><img src="${msg.imagen}" style="width:150px;"></div>`;
+        container.appendChild(imgDiv);
+    }
+
+    if (esUsuario) {
+        const tempId = "temp-" + Date.now();
+        const tempDiv = document.createElement('div');
+        tempDiv.id = tempId;
+        tempDiv.className = "msg-wrapper";
+        tempDiv.innerHTML = `<div class="bubble" style="background:#d1e0f0"><b>CH:</b> <span class="dots">.</span></div>`;
+        container.appendChild(tempDiv);
+        
+        let dots = 1;
+        const interval = setInterval(() => {
+            dots = (dots % 3) + 1;
+            tempDiv.querySelector('.dots').innerText = ".".repeat(dots);
+        }, 500);
+
+        setTimeout(() => {
+            clearInterval(interval);
+            let res = {};
+            if (msg.texto.includes("Claro") || msg.texto.includes("Obvio")) {
+                res = { texto: "¿Pero sabes lo que es?", opciones: ["explicame", "claro, pero refrescamelo..."] };
+            } else if (msg.texto.includes("explicame") || msg.texto.includes("refrescamelo")) {
+                res = { texto: "CHALETEO VARSITY es una forma de vivir el verano como si estuvieramos en la típica fiesta de una fraternidad estadounidense...", opciones: ["Ahora tiene más sentido", "¡¡Qué ganas!!"] };
+            } else if (msg.texto.includes("sentido") || msg.texto.includes("ganas")) {
+                res = { texto: "Te acuerdas de esto?", imagen: "LOGO TUENTI.png", opciones: ["SIII!!!", "Eso es tuenti no???"] };
+            } else if (msg.texto.includes("SIII") || msg.texto.includes("tuenti no")) {
+                res = { texto: "Esto es Tuenti. Queremos estar en CHALETEO y tener nuestro propio espacio, ayudanos mandando fotos tuyas de la época o mejor dicho foto tuentis aqui debajo ↓↓↓↓↓↓" };
+            }
+            if (res.texto) {
+                push(chatRef, { emisor: "CH", ...res, timestamp: Date.now() });
+            }
+            tempDiv.remove();
+        }, 2000);
+    } else if (msg.opciones && !esperandoFoto) {
+        btnArea.innerHTML = "";
+        msg.opciones.forEach(opc => {
+            const b = document.createElement('button');
+            b.innerText = opc;
+            b.onclick = () => push(chatRef, { emisor: "Yo", texto: opc, timestamp: Date.now() });
+            btnArea.appendChild(b);
+        });
+    } else if (msg.texto && msg.texto.includes("↓↓↓↓↓↓")) {
+        esperandoFoto = true;
+        btnArea.innerHTML = "Sube tu foto:<br><input type='file' accept='image/*'>";
+        btnArea.querySelector('input').onchange = async (e) => {
+            const f = new FormData(); f.append("image", e.target.files[0]);
+            const r = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: f });
+            const d = await r.json();
+            push(chatRef, { emisor: "Yo", texto: "¡Foto recibida!", imagen: d.data.url, timestamp: Date.now() });
+        };
+    }
+    container.scrollTop = container.scrollHeight;
+});
+</script>
+</body>
+</html>
